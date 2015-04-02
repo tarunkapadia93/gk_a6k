@@ -1075,4 +1075,8 @@ config INPUT_MT_WRAPPER
 
 	  If unsure, say N.
 
+config STATE_NOTIFIER
+        bool "State Notifier"
+	default y
+
 endif
