@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/irqreturn.h>
-#include "msm_csid.h"
+#include "include/msm_csid.h"
 #include "msm_sd.h"
 #include "msm_camera_io_util.h"
 #include "include/msm_csid_2_0_hwreg.h"

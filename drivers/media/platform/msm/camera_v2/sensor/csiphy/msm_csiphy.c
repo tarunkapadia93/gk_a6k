@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/irqreturn.h>
 #include <mach/vreg.h>
-#include "msm_csiphy.h"
+#include "include/msm_csiphy.h"
 #include "msm_sd.h"
 #include "msm_camera_io_util.h"
 #include "include/msm_csiphy_2_0_hwreg.h"
