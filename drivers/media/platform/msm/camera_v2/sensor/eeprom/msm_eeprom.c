@@ -17,7 +17,9 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
+#include <linux/hardware_info.h>
 
+//#define MSM_EEPROM_DEBUG
 #undef CDBG
 #ifdef MSM_EEPROM_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
@@ -910,6 +912,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	int rc = 0;
 	int j = 0;
 	uint32_t temp;
+	static char eeprom_module_id[20] = {0};
 
 	struct msm_camera_cci_client *cci_client = NULL;
 	struct msm_eeprom_ctrl_t *e_ctrl = NULL;
@@ -1027,6 +1030,9 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		CDBG("memory_data[%d] = 0x%X\n", j,
 			e_ctrl->cal_data.mapdata[j]);
 
+	sprintf(eeprom_module_id, "%x",e_ctrl->cal_data.mapdata[1]);	
+	hardwareinfo_set_prop(HARDWARE_BACK_CAM_MOUDULE_ID,eeprom_module_id);
+	
 	e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 
 	rc = msm_camera_power_down(power_info, e_ctrl->eeprom_device_type,

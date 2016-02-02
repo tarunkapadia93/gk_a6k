@@ -91,7 +91,7 @@ module_param(lpm_disconnect_thresh , uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(lpm_disconnect_thresh,
 	"Delay before entering LPM on USB disconnect");
 
-static bool floated_charger_enable;
+static bool floated_charger_enable=1;
 module_param(floated_charger_enable , bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(floated_charger_enable,
 	"Whether to enable floated charger");
@@ -1496,6 +1496,20 @@ static int msm_otg_notify_chg_type(struct msm_otg *motg)
 	return 0;
 }
 
+//bug290818,shenyong.wt,2014.10.13,start,add check usb online interface
+int is_usb_connect(void)
+{
+	if((the_msm_otg==NULL))
+		return 0xff;
+
+	//printk("XXX::chg_type=%d\r\n",the_msm_otg->chg_type);//hoper
+	if(the_msm_otg->chg_type == USB_SDP_CHARGER)
+		return 1;
+	else
+		return 0;	
+}
+//bug290818,shenyong.wt,2014.10.13,end,add check usb online interface
+
 static int msm_otg_notify_power_supply(struct msm_otg *motg, unsigned mA)
 {
 	if (!psy) {
@@ -2837,7 +2851,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 					break;
 				case USB_FLOATED_CHARGER:
 					msm_otg_notify_charger(motg,
-							IDEV_CHG_MAX);
+							IDEV_CHG_MIN);
 					pm_runtime_put_noidle(otg->phy->dev);
 					pm_runtime_suspend(otg->phy->dev);
 					break;

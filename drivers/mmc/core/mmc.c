@@ -24,6 +24,8 @@
 #include "bus.h"
 #include "mmc_ops.h"
 #include "sd_ops.h"
+#include <linux/hardware_info.h>
+
 
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
@@ -82,14 +84,35 @@ static const struct mmc_fixup mmc_fixups[] = {
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
+
+struct emmc_id_pnm {
+	unsigned int		manfid;
+	unsigned char 		pnm[6];
+	char  * emmc_name;
+};
+
+static struct emmc_id_pnm emmc_arrary[]={
+{0x15,{0x51,0x37,0x58,0x53,0x41,0x42},"KMQ7x000SA-B315-Samsung"},
+{0x90,{0x48,0x38,0x47,0x32,0x64,0x04},"H9TQ65A8GTMCUR-Hynix"},
+{0xfe,{0x50,0x31,0x4a,0x39,0x35,0x4b},"MT29TZZZ8D5BKFAH-125-Micron"},
+{0x15,{0x51,0x38,0x58,0x53,0x41,0x42},"KMQ8X000SA-B414-Samsung"},
+{0x90,{0x48,0x41,0x47,0x32,0x65,0x05},"H9T17A8GTMCUR-Hynix"},
+{0x90,{0x48,0x38,0x47,0x31,0x65,0x05},"H9TQ64A8GTMCUR-KUM-Hynix"},
+{0x90,{0x48,0x41,0x47,0x32,0x65,0x05},"H9TQ17ABJTMCUR-KUM-Hynix"},
+{0x13,{0x52,0x31,0x4A,0x39,0x36,0x4E},"MT29TZZZ5D6YKFAH-125-Micron"},
+};
+
+
 static int mmc_decode_cid(struct mmc_card *card)
 {
 	u32 *resp = card->raw_cid;
-
+	unsigned int i,j;
+        char * temp_emmc_name="flash not found";
 	/*
 	 * The selection of the format here is based upon published
 	 * specs from sandisk and from what people have reported.
 	 */
+	 printk("XXX::mmca_vsn::csd.mmca_vsn=%d\r\n",card->csd.mmca_vsn);//hoper
 	switch (card->csd.mmca_vsn) {
 	case 0: /* MMC v1.0 - v1.2 */
 	case 1: /* MMC v1.4 */
@@ -123,14 +146,36 @@ static int mmc_decode_cid(struct mmc_card *card)
 		card->cid.serial	= UNSTUFF_BITS(resp, 16, 32);
 		card->cid.month		= UNSTUFF_BITS(resp, 12, 4);
 		card->cid.year		= UNSTUFF_BITS(resp, 8, 4) + 1997;
+		for(i=0;i<(sizeof(emmc_arrary)/sizeof(emmc_arrary[0]));i++)
+			{
+				j = 0;
+				if(!(emmc_arrary[i].manfid==card->cid.manfid))
+					;
+				else
+					{
+						for(j=0;j<6;j++)
+						{
+							if(!(emmc_arrary[i].pnm[j]==card->cid.prod_name[j]))
+								break;
+						}
+					}
+				if(j==6)
+					{
+						printk("XXX::emmc_name=%s\r\n",emmc_arrary[i].emmc_name);//hoper
+						temp_emmc_name = emmc_arrary[i].emmc_name;
+						break;
+					}
+			}
 		break;
 
-	default:
-		pr_err("%s: card has unknown MMCA version %d\n",
+		default:
+			hardwareinfo_set_prop(HARDWARE_FLASH,temp_emmc_name);
+			pr_err("%s: card has unknown MMCA version %d\n",
 			mmc_hostname(card->host), card->csd.mmca_vsn);
 		return -EINVAL;
 	}
 
+	hardwareinfo_set_prop(HARDWARE_FLASH,temp_emmc_name);
 	return 0;
 }
 

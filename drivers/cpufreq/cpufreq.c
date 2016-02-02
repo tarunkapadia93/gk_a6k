@@ -408,9 +408,13 @@ static ssize_t show_##file_name				\
 {							\
 	return sprintf(buf, "%u\n", policy->object);	\
 }
-
+static ssize_t show_cpuinfo_max_freq
+(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%u\n", 1209600);
+}
 show_one(cpuinfo_min_freq, cpuinfo.min_freq);
-show_one(cpuinfo_max_freq, cpuinfo.max_freq);
+//show_one(cpuinfo_max_freq, cpuinfo.max_freq);
 show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);

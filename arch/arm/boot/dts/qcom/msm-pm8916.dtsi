@@ -36,7 +36,7 @@
 				qcom,pon-type = <0>;
 				qcom,support-reset = <1>;
 				qcom,pull-up = <1>;
-				qcom,s1-timer = <10256>;
+				qcom,s1-timer = <6000>;
 				qcom,s2-timer = <2000>;
 				qcom,s2-type = <1>;
 				linux,code = <116>;
@@ -204,20 +204,20 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			qcom,vddmax-mv = <4200>;
-			qcom,vddsafe-mv = <4200>;
-			qcom,vinmin-mv = <4308>;
+			qcom,vddmax-mv = <4350>;
+			qcom,vddsafe-mv = <4350>;
+			qcom,vinmin-mv = <4470>;
 			qcom,ibatsafe-ma = <1440>;
-			qcom,thermal-mitigation = <1440 720 630 0>;
-			qcom,cool-bat-decidegc = <100>;
+			qcom,thermal-mitigation = <1440 720 540 0>;
+			qcom,cool-bat-decidegc = <150>;
 			qcom,warm-bat-decidegc = <450>;
-			qcom,cool-bat-mv = <4100>;
-			qcom,warm-bat-mv = <4100>;
-			qcom,ibatmax-warm-ma = <360>;
-			qcom,ibatmax-cool-ma = <360>;
-			qcom,batt-hot-percentage = <25>;
-			qcom,batt-cold-percentage = <80>;
-			qcom,tchg-mins = <232>;
+			qcom,cool-bat-mv = <4350>;
+			qcom,warm-bat-mv = <4150>;
+			qcom,ibatmax-warm-ma = <990>;
+			qcom,ibatmax-cool-ma = <540>;
+			qcom,batt-hot-percentage = <35>;
+			qcom,batt-cold-percentage = <70>;
+			qcom,tchg-mins = <360>;
 			qcom,resume-soc = <99>;
 			qcom,chg-vadc = <&pm8916_vadc>;
 			qcom,chg-adc_tm = <&pm8916_adc_tm>;
@@ -269,7 +269,7 @@
 			qcom,v-cutoff-uv = <3400000>;
 			qcom,max-voltage-uv = <4200000>;
 			qcom,r-conn-mohm = <0>;
-			qcom,shutdown-soc-valid-limit = <100>;
+			qcom,shutdown-soc-valid-limit = <30>;
 			qcom,low-soc-calculate-soc-threshold = <15>;
 			qcom,low-voltage-calculate-soc-ms = <1000>;
 			qcom,low-soc-calculate-soc-ms = <5000>;
@@ -544,7 +544,7 @@
 			compatible = "qcom,qpnp-vibrator";
 			reg = <0xc000 0x100>;
 			label = "vibrator";
-			status = "disabled";
+			status = "okay";
 		};
 
 		pm8916_tombak_dig: msm8x16_wcd_codec@f000{

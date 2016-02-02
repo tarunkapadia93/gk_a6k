@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/swap.h>
 #include <linux/vmalloc.h>
 #include "ion_priv.h"
 
@@ -145,9 +146,13 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 	int nr_freed = 0;
 	int i;
 	bool high;
-
-	high = !!(gfp_mask & __GFP_HIGHMEM);
-
+        //+qc patch, 20150303, lanchunjia.wt, modify 
+        //https://www.codeaurora.org/gitweb/quic/la/?p=kernel/msm-3.10.git;a=commit;h=ffe4d76091bc419a3710bc6df6dae8cb1f34ee40
+        if (current_is_kswapd())
+            high = 1;
+        else
+	    high = !!(gfp_mask & __GFP_HIGHMEM);
+        //-qc patch, 20150303, lanchunjia.wt, modify 
 	if (nr_to_scan == 0)
 		return ion_page_pool_total(pool, high);
 

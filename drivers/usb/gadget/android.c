@@ -231,6 +231,9 @@ static int usb_diag_update_pid_and_serial_num(uint32_t pid, const char *snum);
 static char manufacturer_string[256];
 static char product_string[256];
 static char serial_string[256];
+//+++Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
+static char uinque_serial_string[256];
+//---Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
 
 /* String Table */
 static struct usb_string strings_dev[] = {
@@ -301,6 +304,7 @@ static void android_pm_qos_update_latency(struct android_dev *dev, int vote)
 	last_vote = vote;
 }
 
+extern int is_usb_connect(void);//bug290818,shenyong.wt,2014.10.13,add usb check online interface
 static void android_work(struct work_struct *data)
 {
 	struct android_dev *dev = container_of(data, struct android_dev, work);
@@ -311,11 +315,23 @@ static void android_work(struct work_struct *data)
 	char *suspended[2]   = { "USB_STATE=SUSPENDED", NULL };
 	char *resumed[2]   = { "USB_STATE=RESUMED", NULL };
 	char **uevent_envp = NULL;
+	int hw_connected =0;        
 	static enum android_device_state last_uevent, next_state;
 	unsigned long flags;
 	int pm_qos_vote = -1;
 
 	spin_lock_irqsave(&cdev->lock, flags);
+	//bug290818,shenyong.wt,2014.10.13,start,solve statusbar disappear when usb function switch
+	//printk("XXX::usb_connect=0x%x\r\n",is_usb_connect());//hoper
+	//if(is_usb_connect() !=0xff)
+	{
+		if(is_usb_connect())
+			 hw_connected = 1;
+		else
+			 hw_connected = 0;
+	}
+	//bug290818,shenyong.wt,2014.10.13,end,solve statusbar disappear when usb function switch
+	
 	if (dev->suspended != dev->sw_suspended && cdev->config) {
 		if (strncmp(dev->pm_qos, "low", 3))
 			pm_qos_vote = dev->suspended ? 0 : 1;
@@ -372,6 +388,12 @@ static void android_work(struct work_struct *data)
 	} else {
 		pr_info("%s: did not send uevent (%d %d %p)\n", __func__,
 			 dev->connected, dev->sw_connected, cdev->config);
+		//bug290818,shenyong.wt,2014.10.13,start,solve statusbar disappear when usb function switch
+		uevent_envp = hw_connected ? connected : disconnected;
+		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE,
+					   uevent_envp);
+		pr_info("%s: XXX::sent uevent %s\n", __func__, uevent_envp[0]);
+		//bug290818,shenyong.wt,2014.10.13,start,solve statusbar disappear when usb function switch
 	}
 }
 
@@ -470,7 +492,14 @@ static int ffs_function_bind_config(struct android_usb_function *f,
 				    struct usb_configuration *c)
 {
 	struct functionfs_config *config = f->config;
-	return functionfs_bind_config(c->cdev, c, config->data);
+	//bug305087,shenyong.wt,modify 2014.12.08
+	if (config->data)
+		return functionfs_bind_config(c->cdev, c, config->data);
+	else
+	{
+		printk("config data is null\r\n");//hoper
+		return -1;//hoper
+	}
 }
 
 static ssize_t
@@ -2196,6 +2225,10 @@ struct mass_storage_function_config {
 };
 
 #define MAX_LUN_NAME 8
+//shenyong.wt,20140912,start.add mtp+cdrom
+int uicc_luns_count = 0;
+int luns_count = 0;
+//shenyong.wt,20140912,end.add mtp+cdrom
 static int mass_storage_function_init(struct android_usb_function *f,
 					struct usb_composite_dev *cdev)
 {
@@ -2207,6 +2240,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	char name[FSG_MAX_LUNS][MAX_LUN_NAME];
 	u8 uicc_nluns = dev->pdata ? dev->pdata->uicc_nluns : 0;
 
+	uicc_luns_count = uicc_nluns;//shenyong.wt,20140912,add mtp+cdrom
 	config = kzalloc(sizeof(struct mass_storage_function_config),
 							GFP_KERNEL);
 	if (!config) {
@@ -2214,6 +2248,8 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		return -ENOMEM;
 	}
 
+    //shenyong.wt,20140912,start.add mtp+cdrom
+	#if 0
 	config->fsg.nluns = 1;
 	snprintf(name[0], MAX_LUN_NAME, "lun");
 	config->fsg.luns[0].removable = 1;
@@ -2225,7 +2261,21 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		snprintf(name[config->fsg.nluns], MAX_LUN_NAME, "rom");
 		config->fsg.nluns++;
 	}
-
+	#else
+	config->fsg.nluns = 1;
+	if (dev->pdata && dev->pdata->cdrom) {
+		config->fsg.luns[0].cdrom = 1;
+		config->fsg.luns[0].ro = 1;
+		config->fsg.luns[0].removable = 0;
+		snprintf(name[0], MAX_LUN_NAME, "rom");
+	}
+	
+	snprintf(name[config->fsg.nluns], MAX_LUN_NAME, "lun");
+	config->fsg.luns[config->fsg.nluns].removable = 1;
+	config->fsg.nluns++;
+	#endif
+    //shenyong.wt,20140912,end.add mtp+cdrom
+	
 	if (uicc_nluns > FSG_MAX_LUNS - config->fsg.nluns) {
 		uicc_nluns = FSG_MAX_LUNS - config->fsg.nluns;
 		pr_debug("limiting uicc luns to %d\n", uicc_nluns);
@@ -2238,6 +2288,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		config->fsg.nluns++;
 	}
 
+	luns_count = config->fsg.nluns;//shenyong.wt,20140912,end.add mtp+cdrom
 	common = fsg_common_init(NULL, cdev, &config->fsg);
 	if (IS_ERR(common)) {
 		kfree(config);
@@ -2271,13 +2322,17 @@ static int mass_storage_lun_init(struct android_usb_function *f,
 	bool inc_lun = true;
 	int i = config->fsg.nluns, index, length;
 	static int number_of_luns;
+	//shenyong.wt,20140912,start.add mtp+cdrom
+	int j,n;
+	char name[FSG_MAX_LUNS][MAX_LUN_NAME];
+	//shenyong.wt,20140912,start.end mtp+cdrom
 
 	length = strlen(lun_info);
 	if (!length) {
 		pr_err("LUN_INFO is null.\n");
 		return -EINVAL;
 	}
-
+	
 	index = i + number_of_luns;
 	if (index >= FSG_MAX_LUNS) {
 		pr_err("Number of LUNs exceed the limit.\n");
@@ -2290,7 +2345,47 @@ static int mass_storage_lun_init(struct android_usb_function *f,
 		config->fsg.luns[index].cdrom = 1;
 		config->fsg.luns[index].removable = 0;
 		config->fsg.luns[index].ro = 1;
-	} else {
+	//shenyong.wt,20140912,start.add mtp+cdrom
+	} else if(!strcmp(lun_info, "default")) {
+	    config->fsg.nluns = 1;		
+		config->fsg.luns[0].cdrom = 1;
+		config->fsg.luns[0].ro = 1;
+		config->fsg.luns[0].removable = 0;
+		snprintf(name[0], MAX_LUN_NAME, "rom");		
+		
+		snprintf(name[config->fsg.nluns], MAX_LUN_NAME, "lun");
+		config->fsg.luns[config->fsg.nluns].removable = 1;
+		config->fsg.nluns++;
+
+		for (j= 0; j < uicc_luns_count; j++) {
+		n = config->fsg.nluns;
+		snprintf(name[n], MAX_LUN_NAME, "uicc%d", i);
+		config->fsg.luns[n].removable = 1;
+		config->fsg.nluns++;
+		}		
+		luns_count = config->fsg.nluns;
+		//printk("XXX::lun_info is default::config->fsg.nluns=%d\r\n",config->fsg.nluns);
+		return -EINVAL;
+	}else if(!strcmp(lun_info, "lenovomtp")) {
+		config->fsg.nluns = 1;		
+		config->fsg.luns[0].cdrom = 1;
+		config->fsg.luns[0].ro = 1;
+		config->fsg.luns[0].removable = 0;
+		snprintf(name[0], MAX_LUN_NAME, "rom");		
+
+		for (j= 0; j < uicc_luns_count; j++) {
+		n = config->fsg.nluns;
+		snprintf(name[n], MAX_LUN_NAME, "uicc%d", i);
+		config->fsg.luns[n].removable = 1;
+		config->fsg.nluns++;
+		}
+		
+		luns_count = config->fsg.nluns;
+		//printk("XXX::lun_info is lenovomtp::fsg.nluns=%d\r\n",config->fsg.nluns);//hoper
+		return -EINVAL;
+	}
+	//shenyong.wt,20140912,end.add mtp+cdrom
+	else {
 		pr_err("Invalid LUN info.\n");
 		inc_lun = false;
 		return -EINVAL;
@@ -2333,6 +2428,7 @@ static void mass_storage_function_enable(struct android_usb_function *f)
 
 		while (b) {
 			lun_type = strsep(&b, ",");
+			//printk("XXX::mass_storage_function_enable::lun_type=%s\r\n",lun_type);//hoper
 			if (lun_type)
 				number_of_luns =
 					mass_storage_lun_init(f, lun_type);
@@ -2843,6 +2939,32 @@ static ssize_t remote_wakeup_store(struct device *pdev,
 	return size;
 }
 
+//+++Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
+static ssize_t								
+iSerial_show(struct device *dev, struct device_attribute *attr,	
+		char *buf)						
+{									
+	return snprintf(buf, PAGE_SIZE, "%s", serial_string);			
+}									
+static ssize_t								
+iSerial_store(struct device *dev, struct device_attribute *attr,	
+		const char *buf, size_t size)				
+{									
+	if (size >= sizeof(serial_string))					
+		return -EINVAL;						
+	strlcpy(serial_string, buf, sizeof(serial_string));				
+	strim(serial_string);	
+    if(0 != strncmp(buf, "0123456789", sizeof("0123456789" - 1)))
+    {
+        strlcpy(uinque_serial_string, buf, sizeof(uinque_serial_string));
+        strim(uinque_serial_string);
+    }
+    printk("%s: serial number is %s, uinque_serial_string is %s\n", __func__, serial_string, uinque_serial_string);
+	return size;							
+}	
+static DEVICE_ATTR(iSerial, S_IRUGO | S_IWUSR, iSerial_show, iSerial_store);
+//---Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
+
 static ssize_t
 functions_show(struct device *pdev, struct device_attribute *attr, char *buf)
 {
@@ -2891,6 +3013,13 @@ functions_store(struct device *pdev, struct device_attribute *attr,
 		mutex_unlock(&dev->mutex);
 		return -EBUSY;
 	}
+
+    //+++Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
+    if(0 != strcmp(buff, "diag,serial,rmnet,adb"))
+    {
+        strlcpy(serial_string, uinque_serial_string, sizeof(serial_string));    
+    }
+    //---Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
 
 	/* Clear previous enabled list */
 	list_for_each_entry(conf, &dev->configs, list_item) {
@@ -3137,7 +3266,9 @@ DESCRIPTOR_ATTR(bDeviceSubClass, "%d\n")
 DESCRIPTOR_ATTR(bDeviceProtocol, "%d\n")
 DESCRIPTOR_STRING_ATTR(iManufacturer, manufacturer_string)
 DESCRIPTOR_STRING_ATTR(iProduct, product_string)
-DESCRIPTOR_STRING_ATTR(iSerial, serial_string)
+//+++Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
+//DESCRIPTOR_STRING_ATTR(iSerial, serial_string)
+//---Require,2014.10.02,HuangNan_Wingtech,use the same serial number when default usb config
 
 static DEVICE_ATTR(functions, S_IRUGO | S_IWUSR, functions_show,
 						 functions_store);

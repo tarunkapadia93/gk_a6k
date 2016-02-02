@@ -215,7 +215,13 @@ static irqreturn_t wcd9xxx_spmi_irq_handler(int linux_irq, void *data)
 
 	irq = get_irq_bit(linux_irq);
 	if (irq == MAX_NUM_IRQS)
+	{
+		//maybe a bug , wanggongzhen.wt, this should release the lock , otherwise will block suspend
+		printk("wgz this should not enter , maybe there has error\n");
+		wcd9xxx_spmi_unlock_sleep();
+		//wgz add end
 		return IRQ_HANDLED;
+	}
 
 	status[BIT_BYTE(irq)] |= BYTE_BIT_MASK(irq);
 	for (i = 0; i < NUM_IRQ_REGS; i++) {

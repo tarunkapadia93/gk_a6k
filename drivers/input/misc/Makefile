@@ -83,3 +83,5 @@ endif
 ifeq ($(CONFIG_BOSCH_BMA2X2_ENABLE_INT2),y)
 	EXTRA_CFLAGS += -DBMA2X2_ENABLE_INT2
 endif
+obj-$(CONFIG_INPUT_LTR553)      += ltr553.o
+obj-$(CONFIG_SENSORS_ELAN_EPL2182)      += elan_epl2182.o

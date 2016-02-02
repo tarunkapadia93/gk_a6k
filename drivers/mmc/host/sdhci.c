@@ -102,6 +102,7 @@ static void sdhci_dump_state(struct sdhci_host *host)
 
 static void sdhci_dumpregs(struct sdhci_host *host)
 {
+	return;//bug313487,shenyong.wt,2014.01.13,take off sdhc error log
 	pr_info(DRIVER_NAME ": =========== REGISTER DUMP (%s)===========\n",
 		mmc_hostname(host->mmc));
 
@@ -2952,7 +2953,8 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 			sdhci_dumpregs(host);
 		}
 		sdhci_finish_data(host);
-	} else {
+	} 
+	else {
 		if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL))
 			sdhci_transfer_pio(host);
 

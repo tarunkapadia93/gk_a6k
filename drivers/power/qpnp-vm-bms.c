@@ -1827,6 +1827,9 @@ static void monitor_soc_work(struct work_struct *work)
 
 				pr_debug("update bms_psy\n");
 				power_supply_changed(&chip->bms_psy);
+			} else if (chip->last_soc != chip->calculated_soc) {
+				pr_debug("update bms_psy\n");
+				power_supply_changed(&chip->bms_psy);
 			} else {
 				report_vm_bms_soc(chip);
 			}
@@ -1857,7 +1860,7 @@ static void voltage_soc_timeout_work(struct work_struct *work)
 	mutex_lock(&chip->bms_device_mutex);
 	if (!chip->bms_dev_open) {
 		pr_warn("BMS device not opened, using voltage based SOC\n");
-		chip->dt.cfg_use_voltage_soc = true;
+		chip->dt.cfg_use_voltage_soc = false;  //bug306041 xuecheng.wt modify for bug 306041  20141208
 	}
 	mutex_unlock(&chip->bms_device_mutex);
 }
@@ -2499,7 +2502,9 @@ static void adjust_pon_ocv(struct qpnp_bms_chip *chip, int batt_temp)
 
 static int calculate_initial_soc(struct qpnp_bms_chip *chip)
 {
-	int rc, batt_temp = 0, est_ocv = 0;
+
+	int rc, batt_temp = 0, est_ocv = 0;// shutdown_soc = 0;  //bug xuecheng.wt modify for bug 285670  20140902
+
 	int shutdown_soc_invalid = 0;
 
 	rc = get_batt_therm(chip, &batt_temp);

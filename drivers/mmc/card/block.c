@@ -1439,12 +1439,12 @@ retry:
 			goto out;
 	}
 
-	if (mmc_can_sanitize(card)) {
+	/*if (mmc_can_sanitize(card)) {
 		trace_mmc_blk_erase_start(EXT_CSD_SANITIZE_START, 0, 0);
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_SANITIZE_START, 1, 30000);
 		trace_mmc_blk_erase_end(EXT_CSD_SANITIZE_START, 0, 0);
-	}
+	}*/
 out_retry:
 	if (err && !mmc_blk_reset(md, card->host, type))
 		goto retry;
@@ -3222,6 +3222,13 @@ static const struct mmc_fixup blk_fixups[] =
 	 * indicated in CSD.
 	 */
 	MMC_FIXUP(CID_NAME_ANY, CID_MANFID_MICRON, 0x200, add_quirk_mmc,
+		  MMC_QUIRK_LONG_READ_TIME),
+
+	/*
+	 * Some Samsung MMC cards need longer data read timeout than
+	 * indicated in CSD.
+	 */
+	MMC_FIXUP("Q7XSAB", CID_MANFID_SAMSUNG, 0x100, add_quirk_mmc,
 		  MMC_QUIRK_LONG_READ_TIME),
 
 	/*

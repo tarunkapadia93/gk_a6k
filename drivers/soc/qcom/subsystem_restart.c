@@ -41,6 +41,8 @@
 
 #include <asm/current.h>
 
+#define WT_SUBSYSTEM_REASTART_LEVEL "related"
+
 static int enable_debug;
 module_param(enable_debug, int, S_IRUGO | S_IWUSR);
 
@@ -1339,6 +1341,20 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	subsys->dev.bus = &subsys_bus_type;
 	subsys->dev.release = subsys_device_release;
 
+    /*shenyong.wt,2014.10.13,start,add subsystem retartlevel control by micro*/
+	if(0 == strncmp(WT_SUBSYSTEM_REASTART_LEVEL, "system", 6))
+	{
+		printk("XXX::restartlevel system\r\n");//hoper
+		subsys->restart_level = RESET_SOC;//hoper
+	}
+
+	if(0 == strncmp(WT_SUBSYSTEM_REASTART_LEVEL, "related", 7))
+	{
+		printk("XXX::restartlevel related\r\n");//hoper
+		subsys->restart_level = RESET_SUBSYS_COUPLED;//hoper
+	}
+    /*shenyong.wt,2014.10.13,end,add subsystem retartlevel control by micro*/
+	
 	subsys->notify = subsys_notif_add_subsys(desc->name);
 
 	snprintf(subsys->wlname, sizeof(subsys->wlname), "ssr(%s)", desc->name);

@@ -9,7 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
@@ -23,10 +22,13 @@
 #include <linux/err.h>
 
 #include "mdss_dsi.h"
+#include <linux/hardware_info.h> //req  wuzhenzhen.wt 20140924 add for hardware info
 
 #define DT_CMD_HDR 6
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
+
+extern bool is_Lcm_Present;//heming@wingtech.com,20140730, disable lcm backlight when lcm is not connected 
 
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -203,33 +205,43 @@ disp_en_gpio_err:
 	return rc;
 }
 
+bool panel_firsttime_reset = 1;//heming.wt, for gpiolib warning, gpio must request be use. 2014/09/29
+
 int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *pinfo = NULL;
-	int i, rc = 0;
+	int i, rc = 0, rc1 = 0;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
-
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
-
 	if (!gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
-		pr_debug("%s:%d, reset line not configured\n",
+		pr_debug("%s:%d, disp_en_gpio not configured\n",
 			   __func__, __LINE__);
 	}
-
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio)) {
 		pr_debug("%s:%d, reset line not configured\n",
 			   __func__, __LINE__);
 		return rc;
 	}
-
 	pr_debug("%s: enable = %d\n", __func__, enable);
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
+	
+	//heming.wt, for gpiolib warning, gpio must request be use. 2014/09/29, begin
+	if(panel_firsttime_reset && !enable)
+	{
+		rc1 = mdss_dsi_request_gpios(ctrl_pdata);
+		if (rc1) {
+			pr_err(">>> first time gpio request failed\n");
+		}
+		
+		panel_firsttime_reset = 0;
+	}
+	//heming.wt, for gpiolib warning, gpio must request be use. 2014/09/29, end
 
 	if (enable) {
 		rc = mdss_dsi_request_gpios(ctrl_pdata);
@@ -251,7 +263,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			if (gpio_is_valid(ctrl_pdata->bklt_en_gpio))
 				gpio_set_value((ctrl_pdata->bklt_en_gpio), 1);
 		}
-
 		if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
 			if (pinfo->mode_gpio_state == MODE_GPIO_HIGH)
 				gpio_set_value((ctrl_pdata->mode_gpio), 1);
@@ -273,8 +284,10 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
-		gpio_set_value((ctrl_pdata->rst_gpio), 0);
-		gpio_free(ctrl_pdata->rst_gpio);
+		if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+			gpio_free(ctrl_pdata->rst_gpio);
+		}
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
 	}
@@ -815,6 +828,53 @@ static void mdss_dsi_parse_roi_alignment(struct device_node *np,
 	}
 }
 
+void mdss_dsi_parse_status_command(struct device_node *np, struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	int i=0;
+	char cmd_key[]="qcom,mdss-dsi-panel-status-command1";
+	int cmd_len = strlen(cmd_key);
+	for(i = 1;i <= ctrl_pdata->status_cmds_len;i++)
+	{
+		cmd_key[cmd_len-1] = i + '0';
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds[i-1],
+			cmd_key, "qcom,mdss-dsi-panel-status-command-state");
+	}
+}
+int mdss_dsi_parse_status_value(struct device_node *np, struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	int len = 0;	
+	int i = 0,rc=0;
+	struct property *data;
+	char cmd_key[]="qcom,mdss-dsi-panel-status-value1";
+	int j = 1;	
+	u32 sta_val[5];
+	int cmd_len = strlen(cmd_key);
+	
+	for(j = 1;j <= ctrl_pdata->status_cmds_len;j++)
+	{
+		cmd_key[cmd_len-1] = j + '0';
+		data = of_find_property(np, cmd_key, &len);
+		len /= sizeof(u32);
+		if (!data ) {
+		printk("%s: failed, key=%s\n", __func__, cmd_key);
+		return 0;
+		} else {
+			rc = of_property_read_u32_array(np,cmd_key,sta_val,len);
+			if (rc)
+			{
+				printk("%s: Error reading qcom,mdss-dsi-panel-status-value",__func__);
+				return 0;
+			}
+			else
+			{
+				for(i=0;i<len;i++)
+				ctrl_pdata->status_value[j-1][i]= sta_val[i];
+			}
+		}
+	}
+	return 1;
+}
+
 static int mdss_dsi_parse_panel_features(struct device_node *np,
 	struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -1152,13 +1212,17 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 		"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
+	
+	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-command-num", &tmp);
+	ctrl_pdata->status_cmds_len = (!rc ? tmp : 0);
 
-	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds,
-			"qcom,mdss-dsi-panel-status-command",
-				"qcom,mdss-dsi-panel-status-command-state");
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-value", &tmp);
-	ctrl_pdata->status_value = (!rc ? tmp : 0);
-
+	mdss_dsi_parse_status_command(np, ctrl_pdata);
+	
+	rc = mdss_dsi_parse_status_value(np, ctrl_pdata);
+	if (!rc) {
+		pr_err("%s: failed to parse panel status_value\n", __func__);
+		goto error;
+	}
 
 	ctrl_pdata->status_mode = ESD_MAX;
 	rc = of_property_read_string(np,
@@ -1182,6 +1246,7 @@ error:
 	return -EINVAL;
 }
 
+extern char Lcm_name[HARDWARE_MAX_ITEM_LONGTH]; //req  wuzhenzhen.wt 20140924 add for hardware info
 int mdss_dsi_panel_init(struct device_node *node,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	bool cmd_cfg_cont_splash)
@@ -1198,12 +1263,18 @@ int mdss_dsi_panel_init(struct device_node *node,
 	pinfo = &ctrl_pdata->panel_data.panel_info;
 
 	pr_debug("%s:%d\n", __func__, __LINE__);
+	pinfo->panel_name[0] = '\0';
 	panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
-	if (!panel_name)
+	if (!panel_name) {
 		pr_info("%s:%d, Panel name not specified\n",
 						__func__, __LINE__);
-	else
+	} else {
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
+
+	strcpy(Lcm_name,panel_name);//req  wuzhenzhen.wt 20140924 add for hardware info
+
+	strlcpy(&pinfo->panel_name[0], panel_name, MDSS_MAX_PANEL_LEN);
+	}
 
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
 	if (rc) {
@@ -1221,7 +1292,12 @@ int mdss_dsi_panel_init(struct device_node *node,
 
 	ctrl_pdata->on = mdss_dsi_panel_on;
 	ctrl_pdata->off = mdss_dsi_panel_off;
-	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
+	if(is_Lcm_Present)//heming@wingtech.com,20140730, disable lcm backlight when lcm is not connected
+	{
+      ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;  
+    }  
+
+	
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
 
 	return 0;

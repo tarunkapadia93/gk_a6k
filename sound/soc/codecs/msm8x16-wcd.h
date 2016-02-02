@@ -48,6 +48,10 @@
 
 #define NUM_DECIMATORS	2
 
+#define EXT_SPK_AMP_GPIO    (902+119)
+//#define EXT_SPK_AMP_GPIO_1    (902+117)
+#define EXT_SPK_AMP_HEADSET_GPIO    (902+120)
+
 extern const u8 msm8x16_wcd_reg_readable[MSM8X16_WCD_CACHE_SIZE];
 extern const u8 msm8x16_wcd_reg_readonly[MSM8X16_WCD_CACHE_SIZE];
 extern const u8 msm8x16_wcd_reset_reg_defaults[MSM8X16_WCD_CACHE_SIZE];
@@ -233,6 +237,9 @@ extern int msm8x16_register_notifier(struct snd_soc_codec *codec,
 
 extern int msm8x16_unregister_notifier(struct snd_soc_codec *codec,
 				     struct notifier_block *nblock);
+/* Add headset device node. Qlw 2014/09/25 */
+extern void msm8x16_wcd_codec_set_headset_state(u32 state);
+extern int msm8x16_wcd_codec_get_headset_state(void);
 
 #endif
 

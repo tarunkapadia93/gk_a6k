@@ -1716,6 +1716,13 @@ static inline u32 ext4_chksum(struct ext4_sb_info *sbi, u32 crc,
 	} desc;
 	int err;
 
+    /* Added by Dai@wingtech.com: Merge linux office patch for ext4 crash ext4_superblock_csum */
+    if (unlikely(!sbi->s_chksum_driver))  {
+		WARN_ON_ONCE(1);
+		return 0xDEADBEEF;
+	}
+	/* End of added by Dai@xxx */
+
 	BUG_ON(crypto_shash_descsize(sbi->s_chksum_driver)!=sizeof(desc.ctx));
 
 	desc.shash.tfm = sbi->s_chksum_driver;

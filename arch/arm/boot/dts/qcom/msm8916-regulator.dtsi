@@ -50,7 +50,7 @@
 		regulator-max-microvolt = <8>;
 
 		qcom,cpr-voltage-ceiling = <1050000 1150000 1350000>;
-		qcom,cpr-voltage-floor = <1050000 1050000 1162500>;
+		qcom,cpr-voltage-floor = <1050000 1100000 1250000>;/*adjust vcpr floot voltage 1050000 to 1100000 for stabilize while cpu run 200-400mhz by shenyong 2015.02.12*/
 		vdd-apc-supply = <&pm8916_s2>;
 
 		qcom,vdd-mx-corner-map = <4 5 7>;
@@ -297,8 +297,8 @@
 		status = "okay";
 		pm8916_l11: regulator-l11 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <2950000>;
-			qcom,init-voltage = <1800000>;
+			regulator-max-microvolt = <3300000>;//bug289089,shenyong.wt,config vdd max 3.3v
+			qcom,init-voltage = <3000000>;//bug289089,shenyong.wt,config vdd(default) 3.0v
 			status = "okay";
 		};
 	};

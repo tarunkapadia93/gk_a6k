@@ -20,6 +20,7 @@
 
 #include <linux/usb/composite.h>
 #include <asm/unaligned.h>
+#include <linux/spinlock.h>
 
 /*
  * The code in this file is utility code, used to build a gadget driver
@@ -959,7 +960,10 @@ static int get_string(struct usb_composite_dev *cdev,
 			struct usb_gadget_strings **sp;
 
 			sp = get_containers_gs(uc);
+			if (sp)//bug290503,shenyong.wt,20141003,add pointer protect 
+			{
 			collect_langs(sp, s->wData);
+			}
 		}
 
 		for (len = 0; len <= 126 && s->wData[len]; len++)
@@ -1310,8 +1314,14 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 						USB_DT_OTG);
 			break;
 		case USB_DT_STRING:
+		    /*bug290503,shenyong.wt,20141003,start,add lock getsting*/
+			//printk("XXX::composite_setup::USB_DT_STRING:start\r\n");//hoper
+			spin_lock(&cdev->lock);
 			value = get_string(cdev, req->buf,
 					w_index, w_value & 0xff);
+			spin_unlock(&cdev->lock);
+			//printk("XXX::composite_setup::USB_DT_STRING:end\r\n");//hoper
+		    /*bug290503,shenyong.wt,20141003,end,add lock getsting*/
 			if (value >= 0)
 				value = min(w_length, (u16) value);
 			break;

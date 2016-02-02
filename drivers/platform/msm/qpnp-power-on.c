@@ -34,6 +34,7 @@
 
 /* Common PNP defines */
 #define QPNP_PON_REVISION2(base)		(base + 0x01)
+#define QPNP_PON_SBL_STATUS(base)		(base + 0x07)
 
 /* PON common register addresses */
 #define QPNP_PON_RT_STS(base)			(base + 0x10)
@@ -1146,6 +1147,9 @@ static int qpnp_pon_config_init(struct qpnp_pon *pon)
 					"Unable to read s2-type\n");
 				return rc;
 			}
+#ifdef WT_LONGPRESS_POWERKEY_REBOOT
+			cfg->s2_type = 7;
+#endif
 			if (cfg->s2_type > QPNP_PON_RESET_TYPE_MAX) {
 				dev_err(&pon->spmi->dev,
 					"Incorrect reset type specified\n");
@@ -1249,6 +1253,11 @@ free_input_dev:
 	return rc;
 }
 
+//new feature, wanggongzhen.wt 2014.11.25
+static unsigned int power_on_sbl_status = 0;
+module_param(power_on_sbl_status, int, 0444);
+
+
 static int qpnp_pon_probe(struct spmi_device *spmi)
 {
 	struct qpnp_pon *pon;
@@ -1260,6 +1269,7 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	u16 poff_sts = 0;
 	const char *s3_src;
 	u8 s3_src_reg;
+	u8 pull_down = 0x80;
 
 	pon = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_pon),
 							GFP_KERNEL);
@@ -1397,6 +1407,8 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 		return rc;
 	}
 
+	spmi_ext_register_writel(pon->spmi->ctrl ,1, 0x4548 , &pull_down , 1);
+
 	dev_set_drvdata(&spmi->dev, pon);
 
 	INIT_DELAYED_WORK(&pon->bark_work, bark_work_func);
@@ -1427,6 +1439,18 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 		dev_err(&spmi->dev, "sys file creation failed\n");
 		return rc;
 	}
+
+	//new feature, wanggongzhen.wt 2014.11.25
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+			QPNP_PON_SBL_STATUS(pon->base), &buf[0], 1);
+	if (rc) {
+		dev_err(&pon->spmi->dev,
+			"Unable to read addr=%x, rc(%d)\n",
+			QPNP_PON_SBL_STATUS(pon->base), rc);
+		return rc;
+	}
+	power_on_sbl_status = (unsigned int)buf[0];
+	//wgz add end
 
 	return rc;
 }

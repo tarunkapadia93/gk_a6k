@@ -698,7 +698,12 @@ static int ffs_ep0_open(struct inode *inode, struct file *file)
 
 	if (unlikely(ffs->state == FFS_CLOSING))
 		return -EBUSY;
-
+		
+	/*bug290503,shenyong.wt,201410.13,start,add atomic from qcom advice*/
+	if(atomic_read(&ffs->opened))
+		return -EBUSY; 
+	/*bug290503,shenyong.wt,201410.13,end,add atomid from qcom advice*/
+	
 	file->private_data = ffs;
 	ffs_data_opened(ffs);
 
@@ -1463,13 +1468,18 @@ static int functionfs_bind(struct ffs_data *ffs, struct usb_composite_dev *cdev)
 	ffs->ep0req->context = ffs;
 
 	lang = ffs->stringtabs;
-	for (lang = ffs->stringtabs; *lang; ++lang) {
-		struct usb_string *str = (*lang)->strings;
-		int id = ffs->first_id;
-		for (; str->s; ++id, ++str)
-			str->id = id;
-	}
+	//bug290503,shenyong.wt,2014.10.13,start,pointer protect from qcom advice
+	if(lang)
+	{	
 
+		for (/*lang = ffs->stringtabs*/; *lang; ++lang) {
+			struct usb_string *str = (*lang)->strings;
+			int id = ffs->first_id;
+			for (; str->s; ++id, ++str)
+			str->id = id;
+		}
+	}
+    //bug290503,shenyong.wt,2014.10.13,end,pointer protect frome qcom advice
 	ffs->gadget = cdev->gadget;
 	ffs_data_get(ffs);
 	return 0;
@@ -1537,12 +1547,33 @@ static void ffs_epfiles_destroy(struct ffs_epfile *epfiles, unsigned count)
 	kfree(epfiles);
 }
 
+
+/*bug290503,shenyong.wt,20141003,start,add usb strings define for adb*/
+#if 1
+static struct usb_string adb_string_defs[] = {
+	[0].s = "ADB Interface",
+	{  } /* end of list */
+};
+
+static struct usb_gadget_strings adb_string_table = {
+	.language =		0x0409,	/* en-us */
+	.strings =		adb_string_defs,
+};
+
+static struct usb_gadget_strings *adb_strings[] = {
+	&adb_string_table,
+	NULL,
+};
+#endif
+
 static int functionfs_bind_config(struct usb_composite_dev *cdev,
 				  struct usb_configuration *c,
 				  struct ffs_data *ffs)
 {
 	struct ffs_function *func;
 	int ret;
+	struct usb_gadget_strings	*s;//hoper
+	struct usb_gadget_strings	*s1;//hoper
 
 	ENTER();
 
@@ -1551,8 +1582,31 @@ static int functionfs_bind_config(struct usb_composite_dev *cdev,
 		return -ENOMEM;
 
 	func->function.name    = "Function FS Gadget";
-	func->function.strings = ffs->stringtabs;
-
+	/*bug290503,shenyong.wt,201410.13,start,add lock getsting*/
+	func->function.strings = adb_strings/*ffs->stringtabs*/;
+	#if 1	
+	s1 =*( func->function.strings);
+	if(ffs)
+	{
+		if(ffs->stringtabs)
+		{
+			s = *( ffs->stringtabs);
+			if(s)
+			{
+				//printk("XXX::functionfs_bind_config::language=%d\r\n",s->language);//hoper
+				if(s->strings)
+				{
+		  			s1->strings->id = s->strings->id;
+		  			//printk("XXX::functionfs_bind_config::sid=%d,s1id=%d\r\n",s->strings->id,s1->strings->id);//hoper
+		   			//if(s->strings->s)
+						//printk("XXX::functionfs_bind_config::s=%s\r\n",s->strings->s);//hoper
+				}
+			}
+	  	}
+	}
+	#endif
+    /*bug290503,shenyong.wt,201410.13,end,add lock getsting*/
+	
 	func->function.bind    = ffs_func_bind;
 	func->function.unbind  = ffs_func_unbind;
 	func->function.set_alt = ffs_func_set_alt;

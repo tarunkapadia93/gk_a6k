@@ -592,6 +592,9 @@ static int camera_v4l2_open(struct file *filep)
 					__func__, __LINE__, rc);
 			goto post_fail;
 		}
+
+		/* Disable power colapse latency */
+		msm_pm_qos_update_request(CAMERA_DISABLE_PC_LATENCY);
 	} else {
 		rc = msm_create_command_ack_q(pvdev->vdev->num,
 			find_first_zero_bit(&opn_idx,
@@ -652,6 +655,9 @@ static int camera_v4l2_close(struct file *filep)
 	atomic_set(&pvdev->opened, opn_idx);
 
 	if (atomic_read(&pvdev->opened) == 0) {
+
+		/* Enable power colapse latency */
+		msm_pm_qos_update_request(CAMERA_ENABLE_PC_LATENCY);
 
 		camera_pack_event(filep, MSM_CAMERA_SET_PARM,
 			MSM_CAMERA_PRIV_DEL_STREAM, -1, &event);

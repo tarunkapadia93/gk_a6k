@@ -821,6 +821,20 @@ static int msm_actuator_close(struct v4l2_subdev *sd,
 		pr_err("failed\n");
 		return -EINVAL;
 	}
+
+	if(a_ctrl->cam_name == 200)
+	{
+		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+					&a_ctrl->i2c_client,
+					0,
+					1,
+					MSM_CAMERA_I2C_BYTE_DATA);
+		if(rc < 0)
+		{
+			pr_err("software shutdown error rc=%d" , rc);
+		}
+	}
+	
 	if (a_ctrl->act_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
 		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_util(
 			&a_ctrl->i2c_client, MSM_CCI_RELEASE);

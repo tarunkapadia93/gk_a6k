@@ -159,7 +159,7 @@ static char get_cacheflag(const struct kgsl_memdesc *m)
 
 static void print_mem_entry(struct seq_file *s, struct kgsl_mem_entry *entry)
 {
-	char flags[6];
+	char flags[7];
 	char usage[16];
 	struct kgsl_memdesc *m = &entry->memdesc;
 
@@ -168,7 +168,8 @@ static void print_mem_entry(struct seq_file *s, struct kgsl_mem_entry *entry)
 	flags[2] = get_alignflag(m);
 	flags[3] = get_cacheflag(m);
 	flags[4] = kgsl_memdesc_use_cpu_map(m) ? 'p' : '-';
-	flags[5] = '\0';
+	flags[5] = (m->useraddr)? 'Y' : 'N';
+	flags[6] = '\0';
 
 	kgsl_get_memory_usage(usage, sizeof(usage), m->flags);
 
@@ -178,6 +179,7 @@ static void print_mem_entry(struct seq_file *s, struct kgsl_mem_entry *entry)
 			m->size, entry->id, flags,
 			memtype_str(kgsl_memdesc_usermem_type(m)),
 			usage, m->sglen);
+
 }
 
 static int process_mem_print(struct seq_file *s, void *unused)

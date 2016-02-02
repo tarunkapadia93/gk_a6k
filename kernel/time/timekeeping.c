@@ -316,7 +316,28 @@ int __getnstimeofday(struct timespec *ts)
 	return 0;
 }
 EXPORT_SYMBOL(__getnstimeofday);
+//WingTech: Alex_ma <-add for RTC time of printk-> on20140918
+#if defined(CONFIG_PRINTK_RTC_TIME)
+int do_gettimeofday_nolock(struct timespec *ts)
+{
+	struct timekeeper *tk = &timekeeper;
 
+	s64 nsecs = 0;
+
+	ts->tv_sec = tk->xtime_sec;
+	nsecs = timekeeping_get_ns(tk);
+
+	ts->tv_nsec = 0;
+	timespec_add_ns(ts, nsecs);
+
+	/*
+	 * Do not bail out early, in case there were callers still using
+	 * the value, even in the face of the WARN_ON.
+	 */
+	return 0;
+}
+#endif
+//WingTech: Alex_ma <-add for RTC time of printk-> on20140918 end
 /**
  * getnstimeofday - Returns the time of day in a timespec.
  * @ts:		pointer to the timespec to be set

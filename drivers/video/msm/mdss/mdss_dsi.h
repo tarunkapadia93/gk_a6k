@@ -164,6 +164,7 @@ extern struct device dsi_dev;
 extern u32 dsi_irq;
 extern struct mdss_dsi_ctrl_pdata *ctrl_list[];
 
+
 struct dsiphy_pll_divider_config {
 	u32 clk_rate;
 	u32 fb_divider;
@@ -251,6 +252,9 @@ enum {
 #define DSI_EV_MDP_FIFO_UNDERFLOW	0x0002
 #define DSI_EV_MDP_BUSY_RELEASE		0x80000000
 
+#define STATUS_CMDS_NUM 5
+#define STATUS_VALUE_NUM 5
+
 struct mdss_dsi_ctrl_pdata {
 	int ndx;	/* panel_num */
 	int (*on) (struct mdss_panel_data *pdata);
@@ -300,8 +304,9 @@ struct mdss_dsi_ctrl_pdata {
 
 	struct dsi_panel_cmds on_cmds;
 	struct dsi_panel_cmds off_cmds;
-	struct dsi_panel_cmds status_cmds;
-	u32 status_value;
+	struct dsi_panel_cmds status_cmds[STATUS_CMDS_NUM];
+	u32 status_value[STATUS_CMDS_NUM][STATUS_VALUE_NUM]; 
+	int status_cmds_len;
 
 	struct dsi_panel_cmds video2cmd;
 	struct dsi_panel_cmds cmd2video;

@@ -21,11 +21,12 @@
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
-
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
+
+bool is_Lcm_Present = false;//heming@wingtech.com,20140730, disable lcm backlight when lcm is not connected 
 
 static int mdss_dsi_pinctrl_set_state(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 					bool active);
@@ -752,8 +753,17 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (mipi->lp11_init) {
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 			pr_debug("reset enable: pinctrl not enabled\n");
-		mdss_dsi_panel_reset(pdata, 1);
+		
+		pdata->panel_info.panel_power_on = 0;
+
+		ret = mdss_dsi_panel_reset(pdata, 1);
+		if (ret) {
+			printk("%s: Panel reset failed. rc=%d\n",
+						__func__, ret);
+		}
 	}
+
+	pdata->panel_info.panel_power_on = 1;
 
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
@@ -1080,6 +1090,7 @@ static int mdss_dsi_ctl_partial_update(struct mdss_panel_data *pdata)
 	return rc;
 }
 
+int Packet_PLAG;
 static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 				  int event, void *arg)
 {
@@ -1103,6 +1114,7 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 							pdata);
 		if (ctrl_pdata->on_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_unblank(pdata);
+		Packet_PLAG=0;
 		break;
 	case MDSS_EVENT_PANEL_ON:
 		ctrl_pdata->ctrl_state |= CTRL_STATE_MDP_ACTIVE;
@@ -1175,7 +1187,6 @@ static struct device_node *mdss_dsi_pref_prim_panel(
 
 	return dsi_pan_node;
 }
-
 /**
  * mdss_dsi_find_panel_of_node(): find device node of dsi panel
  * @pdev: platform_device of the dsi ctrl node
@@ -1244,11 +1255,12 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 			       __func__);
 			goto end;
 		}
+		is_Lcm_Present = true;//heming@wingtech.com,20140730, disable lcm backlight when lcmis not connected
 		return dsi_pan_node;
 	}
 end:
 	dsi_pan_node = mdss_dsi_pref_prim_panel(pdev);
-
+	is_Lcm_Present = false;//heming@wingtech.com,20140730, disable lcm backlight when lcm is notconnected 
 	return dsi_pan_node;
 }
 
