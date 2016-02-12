@@ -568,6 +568,14 @@ config ALUCARD_HOTPLUG
 	help
 	  Alucard-hotplug cpu hotplug driver by alucard24
 
+config MSM_HOTPLUG
+	bool "MSM hotplug driver"
+	depends on HOTPLUG_CPU
+	default y
+	help
+	  The MSM hotplug driver controls on-/offlining of additional cores based
+	  on current cpu load.
+
 source "drivers/soc/qcom/memshare/Kconfig"
 
 endif # ARCH_MSM
