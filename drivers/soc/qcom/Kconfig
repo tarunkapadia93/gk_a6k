@@ -569,6 +569,13 @@ config INTELLI_HOTPLUG
 	  An intelligent cpu hotplug driver for
 	  Low Latency Frequency Transition capable processors.
 
+config ALUCARD_HOTPLUG
+	bool "Enable alucard-hotplug cpu hotplug driver"
+	depends on HOTPLUG_CPU
+	default y
+	help
+	  Alucard-hotplug cpu hotplug driver by alucard24
+
 source "drivers/soc/qcom/memshare/Kconfig"
 
 endif # ARCH_MSM
