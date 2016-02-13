@@ -561,6 +561,13 @@ config MSM_PERFORMANCE
 	  It ensures that no more than a user specified number of CPUs stay
 	  online at any given point in time.
 
+config FORCE_FAST_CHARGE
+	bool "Force faster charge rate for AC/USB"
+	default y
+	help
+	  This allows users to override default charge rate for both USB and AC
+	  charger input current
+
 config INTELLI_HOTPLUG
 	bool "Intelli hotplug driver"
 	depends on HOTPLUG_CPU
