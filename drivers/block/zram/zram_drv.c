@@ -38,10 +38,10 @@
 /* Globals */
 static int zram_major;
 static struct zram *zram_devices;
-static const char *default_compressor = "lzo";
+static const char *default_compressor = "lz4";
 
 /* Module params (documentation at end) */
-static unsigned int num_devices = 1;
+static unsigned int num_devices = 4;
 
 static inline void deprecated_attr_warn(const char *name)
 {
@@ -804,7 +804,7 @@ static void zram_reset_device(struct zram *zram)
 	/* Reset stats */
 	memset(&zram->stats, 0, sizeof(zram->stats));
 	zram->disksize = 0;
-	zram->max_comp_streams = 1;
+	zram->max_comp_streams = 3;
 
 	set_capacity(zram->disk, 0);
 	part_stat_set_all(&zram->disk->part0, 0);
